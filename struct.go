@@ -23,15 +23,36 @@ func (p Params) Sample() (float64) {
 type ThompsonSampling struct {
   num_restaurants int;
   restaurants []Params;
+  decay_factor float64;
 }
 
-func InitThompsonSampling(num_restaurants int) (*ThompsonSampling) {
+
+func ContextualThompsonSampling(history_choices []int, feedback []int, num_restaurants int, decay_factor float64) (*ThompsonSampling) {
+  if(len(history_choices)!=len(feedback)){
+    panic("len of history_choices and feedback should be same")
+  }
   var restaurants []Params = make([]Params,num_restaurants)
   for i:=0;i<num_restaurants;i++ {
     restaurants[i] = Params{alpha:1,beta:1}
   }
-  return &ThompsonSampling{num_restaurants:num_restaurants,restaurants:restaurants}
+  for i:=0;i<len(history_choices);i++ {
+    for j,_ := range(restaurants){
+      restaurants[j].alpha *= decay_factor
+      restaurants[j].beta *= decay_factor
+    }
+    var restaurant_i = history_choices[i]
+    var ri int= feedback[i]
+    if(ri==1) {
+      restaurants[restaurant_i].alpha += 1
+    } else {
+      restaurants[restaurant_i].beta += 1
+    }
+  }
+  
+  return &ThompsonSampling{num_restaurants:num_restaurants,restaurants:restaurants, decay_factor:decay_factor}
+
 }
+
 
 func (ts *ThompsonSampling) Sample() ([]float64) {
   // returns list of random values obtained by sampling
@@ -56,10 +77,15 @@ func (ts *ThompsonSampling) Choose( samples []float64) int {
 }
 
 func (ts *ThompsonSampling) Feedback(i int, feedback bool) {
-  // updates params of the i-th restaurant  
-  if(feedback){
-    ts.restaurants[i].alpha += 1
-  } else {
+  for j,_ := range(ts.restaurants){
+      ts.restaurants[j].alpha *= ts.decay_factor
+      ts.restaurants[j].beta *= ts.decay_factor
+    }
+
+  if(!feedback){
     ts.restaurants[i].beta += 1
+  } else {
+    ts.restaurants[i].alpha += 1
   }
+    
 }
