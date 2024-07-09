@@ -23,34 +23,20 @@ func (p Params) Sample() (float64) {
 type ThompsonSampling struct {
   num_restaurants int;
   restaurants []Params;
-  decay_factor float64;
+  tau float64; //prev_accumulated_positive_weight 
+  phi float64; //prev_accumulated_negative_weight
+  positive_reward_weight float64;
+  negative_reward_weight float64;
 }
 
 
-func ContextualThompsonSampling(history_choices []int, feedback []int, num_restaurants int, decay_factor float64) (*ThompsonSampling) {
-  if(len(history_choices)!=len(feedback)){
-    panic("len of history_choices and feedback should be same")
-  }
+func InitThompsonSampling(num_restaurants int,tau,phi,positive_reward_weight,negative_reward_weight float64) (*ThompsonSampling) {
   var restaurants []Params = make([]Params,num_restaurants)
   for i:=0;i<num_restaurants;i++ {
     restaurants[i] = Params{alpha:1,beta:1}
   }
-  for i:=0;i<len(history_choices);i++ {
-    for j,_ := range(restaurants){
-      restaurants[j].alpha *= decay_factor
-      restaurants[j].beta *= decay_factor
-    }
-    var restaurant_i = history_choices[i]
-    var ri int= feedback[i]
-    if(ri==1) {
-      restaurants[restaurant_i].alpha += 1
-    } else {
-      restaurants[restaurant_i].beta += 1
-    }
-  }
   
-  return &ThompsonSampling{num_restaurants:num_restaurants,restaurants:restaurants, decay_factor:decay_factor}
-
+  return &ThompsonSampling{num_restaurants:num_restaurants,restaurants:restaurants, tau:tau, phi:phi,positive_reward_weight:positive_reward_weight, negative_reward_weight:negative_reward_weight}
 }
 
 
@@ -76,16 +62,13 @@ func (ts *ThompsonSampling) Choose( samples []float64) int {
   return suggested_restaurant
 }
 
-func (ts *ThompsonSampling) Feedback(i int, feedback bool) {
-  for j,_ := range(ts.restaurants){
-      ts.restaurants[j].alpha *= ts.decay_factor
-      ts.restaurants[j].beta *= ts.decay_factor
-    }
-
-  if(!feedback){
-    ts.restaurants[i].beta += 1
+func (ts *ThompsonSampling) Feedback(i int, feedback int) {
+  var alpha = ts.restaurants[i].alpha
+  var beta = ts.restaurants[i].beta 
+  if(feedback==0){
+    ts.restaurants[i].beta = ts.phi * (beta)+ ts.negative_reward_weight*1 // here ri is 1
   } else {
-    ts.restaurants[i].alpha += 1
+    ts.restaurants[i].alpha = ts.tau * (alpha) + ts.positive_reward_weight*1
   }
     
 }

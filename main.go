@@ -18,39 +18,53 @@ func main()  {
   // with historical context with weighted decay
   var num_restaurants int = 4
   var num_trials int = 20
-  var decay_factor float64 = 1 // has to be between 0 and 1; 1 means non-contextual TS 
-  // different modelling of decay factor can give different results.
+   // different modelling of decay factor can give different results.
   var history_choices []int = []int{1,1,2,3,2,2,0,0,2,2}
   var feedback []int = []int{1,1,0,0,1,1,0,0,0,0}
+  var tau float64 = 1 // accumulated positive reward weight 
+  var phi float64 =1 // accumulated negative reward weight 
+  var positive_reward_weight float64 = 1
+  var negative_reward_weight float64 = 1
+
   
 
 
-  var ts *ThompsonSampling = ContextualThompsonSampling(history_choices,feedback,num_restaurants,decay_factor)
+  var ts *ThompsonSampling = InitThompsonSampling(num_restaurants,tau,phi,positive_reward_weight,negative_reward_weight)
+
   
   // run trials
-  for trial:=0;trial<num_trials;trial++ {
-    fmt.Println("Trial ",trial)
-    fmt.Println("values of params: ")
-    fmt.Println(ts.restaurants)
-
-
-    // get Beta samples
-    var samples []float64 = ts.Sample()
-    
-    fmt.Println(samples)
-  
-    // get suggested_restaurant
-    var suggested_restaurant int = ts.Choose(samples)
-    fmt.Println("Suggested restaurant: ", suggested_restaurant)
-  
-    // feedback
-    fmt.Println("How was the experience? (good/bad)")
-    var feedback string
-    fmt.Scan(&feedback)
-    if feedback == "good" {
-      ts.Feedback(suggested_restaurant,true)
+  for trial:=0;trial< len(history_choices) + num_trials;trial++ {
+    if(trial < len(history_choices)){
+      if(history_choices[trial]>=num_restaurants){
+        panic("Invalid input history_choices: restaurant not within range")
+      }
+      ts.Feedback(history_choices[trial],feedback[trial])
+      fmt.Println("values of params: ")
+      fmt.Println(ts.restaurants)
     } else {
-      ts.Feedback(suggested_restaurant,false)
+      fmt.Println("Trial ",trial-len(history_choices))
+      fmt.Println("values of params: ")
+      fmt.Println(ts.restaurants)
+
+
+      // get Beta samples
+      var samples []float64 = ts.Sample()
+    
+      fmt.Println(samples)
+  
+      // get suggested_restaurant
+      var suggested_restaurant int = ts.Choose(samples)
+      fmt.Println("Suggested restaurant: ", suggested_restaurant)
+  
+      // feedback
+      fmt.Println("How was the experience? (good/bad)")
+      var feedback string
+      fmt.Scan(&feedback)
+      if feedback == "good" {
+        ts.Feedback(suggested_restaurant,1)
+      } else {
+        ts.Feedback(suggested_restaurant,0)
+      }
     }
 
   }
